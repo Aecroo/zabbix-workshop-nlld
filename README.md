@@ -1,0 +1,468 @@
+# Zabbix Workshop Mock Data API
+
+A Go-based mock data API for the **Zabbix Berlin Conference 2026 Workshop**. This tool provides realistic sensor data for testing and learning **Zabbix 7.4 nested low-level discovery (LLD) features**.
+
+## Quick Start
+
+```bash
+# Build
+go build -o bin/api ./cmd/api
+
+# Run directly
+./bin/api
+
+# Test endpoints
+curl http://localhost:8080/api/all
+curl http://localhost:8080/api/buildings/
+curl http://localhost:8080/api/buildings/10/rooms/
+curl http://localhost:8080/api/rooms/100/sensors/
+curl http://localhost:8080/api/sensors/1001/readings/
+```
+
+## Systemd Service Installation
+
+For production/workshop use, install the API as a systemd service:
+
+```bash
+# Build the binary first
+go build -o bin/api ./cmd/api
+
+# Install and start the service (requires root)
+sudo ./bin/api --install
+
+# Check service status
+./bin/api --status
+# or
+systemctl status zabbix-workshop-api.service
+
+# View logs in real-time
+journalctl -u zabbix-workshop-api.service -f
+
+# Stop the service
+sudo systemctl stop zabbix-workshop-api.service
+
+# Remove the service (requires root)
+sudo ./bin/api --remove
+```
+
+### Service Management Commands
+
+| Command | Description |
+|---------|-------------|
+| `./bin/api` | Start the API server directly |
+| `./bin/api --install` or `-i` | Install systemd service and start it |
+| `./bin/api --remove` or `-r` | Remove systemd service (requires root) |
+| `./bin/api --status` or `-s` | Check if service is running |
+| `./bin/api --help` or `-h` | Show help message |
+
+### Service File Location
+
+The systemd service file is installed at: `/etc/systemd/system/zabbix-workshop-api.service`
+
+Default configuration:
+- **User**: Current user (from `$USER` environment variable)
+- **Working Directory**: Project directory (parent of `bin/`)
+- **Port**: 8080
+- **Host**: 0.0.0.0 (all interfaces)
+- **Restart**: on-failure with 5s delay
+
+## API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/all` | Get all buildings, rooms, sensors, and readings in one request |
+| `GET /api/buildings/` | List all buildings/locations |
+| `GET /api/buildings/{id}/` | Get building details by ID |
+| `GET /api/buildings/{id}/rooms/` | List rooms in a building (minimal, no sensor_ids) |
+| `GET /api/rooms/{id}/` | Get room details by ID (minimal, no sensor_ids) |
+| `GET /api/rooms/{id}/sensors/` | List sensors in a room |
+| `GET /api/sensors/{id}/readings/` | Get latest sensor readings (fused reading) |
+| `GET /health` | Health check endpoint |
+| `GET /swagger/` | OpenAPI Swagger UI documentation |
+
+### Chatty REST Architecture
+
+This API follows a **chatty REST pattern** where individual endpoints return minimal data:
+
+- Room endpoints (`/api/buildings/{id}/rooms/`, `/api/rooms/{id}/`) do **not** include `sensor_ids`
+- To discover sensors, you must call the dedicated `/api/rooms/{id}/sensors/` endpoint
+- Only `/api/all` provides the complete nested hierarchy in one request
+
+This design mirrors real-world APIs and provides realistic testing scenarios for Zabbix LLD with multiple HTTP requests.
+
+### Using `/api/all` for Zabbix LLD Testing
+
+The `/api/all` endpoint returns the complete data hierarchy in a single request, making it ideal for:
+- **Nested Low-Level Discovery (LLD)** - Discover all buildings → rooms → sensors at once
+- **Bulk monitoring setup** - Import all sensor data without chained API calls
+- **Workshop demos** - Show the full mock infrastructure with one curl command
+
+Example response structure (nested arrays):
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 10,
+      "name": "HQ Building",
+      "description": "Main headquarters with all departments",
+      "address": "Tech Park 1, Berlin",
+      "rooms": [
+        {
+          "id": 100,
+          "building_id": 10,
+          "name": "Training Room A",
+          "type": "training_room",
+          "floor": 1,
+          "capacity": 30,
+          "sensors": [
+            {
+              "id": 1001,
+              "room_id": 100,
+              "name": "Environment Sensor - Front",
+              "type": "environment",
+              "description": "Environmental monitoring at front of room",
+              "readings": [
+                {
+                  "sensor_id": 1001,
+                  "temperature": 22.4,
+                  "humidity": 45.2,
+                  "co2": 680,
+                  "timestamp": 1774260581
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "total": 19,
+    "timestamp": 1774260581
+  }
+}
+```
+
+**Note**: The structure is: buildings (array) → rooms (array) → sensors (array, each with readings nested as array). All timestamps are Unix epoch seconds (int64). Environment sensors return fused readings with temperature/humidity/CO2 in a single object. Power sensors return voltage/current/power/energy in a single object.
+
+## ID System
+
+IDs are now **autogenerated** based on the order of appearance in the configuration file:
+
+| Entity | ID Range | Assignment |
+|--------|----------|------------|
+| Buildings | 10-99 | Sequential by order in config (first = 10, second = 11) |
+| Rooms | 100-999 | Sequential across all buildings (first room = 100) |
+| Sensors | 1000-9999 | Sequential within each room (first sensor = 1000) |
+
+**IDs are persistent**: The same configuration will always produce the same IDs. Do not specify `id` fields in your YAML config - they are ignored.
+
+## Demo Company Structure
+
+### Buildings (2 total)
+- **HQ Building** (ID: 10) - Main headquarters with all departments (Tech Park 1, Berlin)
+- **Data Center** (ID: 11) - Secondary data center facility (Industrial Area 5, Berlin)
+
+### Rooms (15 total)
+
+**HQ Building:**
+| ID | Name | Type | Floor | Capacity |
+|----|------|------|-------|----------|
+| 100 | Training Room A | training_room | 1 | 30 |
+| 101 | Training Room B | training_room | 1 | 25 |
+| 102 | Open Office East | office | 2 | 40 |
+| 103 | Open Office West | office | 2 | 35 |
+| 104 | Management Suite | management | 3 | 8 |
+| 105 | Storage Room A | storage | 1 | 2 |
+| 106 | Server Room | serverroom | 2 | 4 |
+| 107 | HR Department | office | 3 | 12 |
+| 108 | Finance Department | office | 3 | 10 |
+| 109 | Kitchen & Cafeteria | kitchen | 1 | 20 |
+| 110 | Reception Lobby | lobby | 1 | 5 |
+
+**Data Center:**
+| ID | Name | Type | Floor | Capacity |
+|----|------|------|-------|----------|
+| 111 | Server Hall A | serverroom | 0 | 6 |
+| 112 | Server Hall B | serverroom | 0 | 6 |
+| 113 | Network Room | serverroom | 0 | 3 |
+| 114 | UPS Room | storage | 0 | 2 |
+
+### Sensor Types (19 total sensors)
+
+Each sensor configuration creates exactly **one** runtime sensor with fused metrics:
+- **environment** type → Returns temperature, humidity, CO2 in a single reading
+- **power** type → Returns voltage, current, power, energy in a single reading
+
+| Type | Metrics Returned | Typical Range | Behavior |
+|------|------------------|---------------|----------|
+| Environment | temperature (°C), humidity (%), co2 (ppm) | 17-30°C, 30-75%, 400-2500ppm | Room-specific baselines, ±0.5%/80ppm per update |
+| Power | voltage (V), current (A), power (W), energy (kWh) | Realistic device values | Time-of-day patterns (higher during business hours) |
+
+## Sensor Value Behavior
+
+Sensor values use a **random walk algorithm** to simulate realistic gradual changes:
+
+- Updates occur every 5 seconds minimum
+- Values stay within room-appropriate ranges with headroom
+- Server rooms kept cooler (17-24°C), kitchens warmer (21-30°C)
+- Power sensors follow time-of-day patterns:
+  - Business hours (9-18): 70-100% load
+  - Morning ramp-up (6-9): 50-70% load
+  - Evening wind-down (18-22): 40-60% load
+  - Night standby: 20-30% load
+
+This creates smooth transitions ideal for Zabbix graphing and trend analysis.
+
+## Configuration
+
+The API uses a YAML configuration file to define buildings, rooms, and sensors. This allows you to customize the mock infrastructure without modifying code.
+
+### Default Configuration
+
+By default, the API loads from `config/default.yaml`. You can override this with the `CONFIG_PATH` environment variable:
+
+```bash
+# Use custom configuration
+CONFIG_PATH=/path/to/custom.yaml ./bin/api
+
+# Docker example
+docker run -e CONFIG_PATH=/custom/config.yaml ...
+```
+
+### Configuration Structure
+
+The YAML file defines a hierarchical structure. **IDs are autogenerated** - do not specify them in the config:
+
+```yaml
+buildings:
+  - name: "HQ Building"
+    description: "Main headquarters"
+    address: "Tech Park 1, Berlin"
+    rooms:
+      - name: "Training Room A"
+        type: training_room
+        floor: 1
+        capacity: 30
+        sensors:
+          - name: "Environment Sensor"
+            type: environment  # Returns temperature, humidity, CO2 in one reading
+            description: "Environmental monitoring at front of room"
+          - name: "Smart Plug - HVAC"
+            type: power        # Returns voltage, current, power, energy in one reading
+            description: "Power monitoring for HVAC unit"
+```
+
+### Sensor Types (Fused Metrics)
+
+| Type | Metrics Returned | Description |
+|------|------------------|-------------|
+| `environment` | temperature, humidity, co2 | Environmental monitoring - single fused reading |
+| `power` | voltage, current, power, energy | Power monitoring - single fused reading |
+
+### Custom Configuration Example
+
+Create a minimal config at `/etc/zabbix-workshop/custom.yaml`:
+
+```yaml
+buildings:
+  - name: "My Office"
+    description: "Custom office setup"
+    address: "123 Main St"
+    rooms:
+      - name: "Server Room"
+        type: serverroom
+        floor: 0
+        capacity: 4
+        sensors:
+          - name: "Environment Sensor"
+            type: environment
+            description: "Environmental monitoring in server room"
+          - name: "Smart Plug - Server Rack"
+            type: power
+            description: "Power monitoring for server rack"
+```
+
+Then run: `CONFIG_PATH=/etc/zabbix-workshop/custom.yaml ./bin/api`
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_PORT` | 8080 | Server port |
+| `API_HOST` | 0.0.0.0 | Server host binding |
+| `DEBUG` | false | Enable debug mode |
+| `DATA_SEED` | 0 | Random seed for reproducible data |
+| `CONFIG_PATH` | config/default.yaml | Path to YAML configuration file |
+
+## Development
+
+```bash
+# Run tests
+go test ./...
+
+# Run with race detection
+go test -race ./...
+
+# Format code
+go fmt ./...
+
+# Lint (requires golangci-lint)
+golangci-lint run
+
+# Build
+go build -o bin/api ./cmd/api
+```
+
+## Project Structure
+
+```
+workshop-nlld/
+├── cmd/
+│   └── api/
+│       └── main.go           # Application entry point with routing and service management
+├── config/
+│   └── default.yaml          # Default YAML configuration (buildings, rooms, sensors)
+├── internal/
+│   ├── handlers/
+│   │   ├── api.go            # HTTP request handlers for API endpoints
+│   │   ├── swagger.go        # Swagger UI/OpenAPI spec handler
+│   │   ├── openapi.json      # OpenAPI 3.0.3 specification
+│   │   └── ui.html           # Embedded Swagger UI HTML
+│   ├── generators/
+│   │   ├── data.go           # Data loading from configuration with autogen IDs
+│   │   └── sensors.go        # Dynamic sensor value generation with random walk
+│   └── models/
+│       ├── types.go          # Runtime data structures (Building, Room, Sensor, Reading)
+│       └── config_types.go   # YAML configuration types and conversion functions
+├── pkg/
+│   └── config/
+│       ├── config.go         # Server configuration from environment variables
+│       ├── loader.go         # YAML configuration loading
+│       └── default.yaml      # Embedded fallback configuration
+├── bin/
+│   └── api                   # Compiled binary (~7.5 MB)
+├── .dockerignore             # Docker build exclusion patterns
+├── Dockerfile                # Multi-stage Docker build configuration
+├── docker-compose.yml        # Docker Compose service definition
+├── go.mod                    # Go module (github.com/zabbix-workshop/nlld)
+├── go.sum                    # Go dependency checksums
+├── README.md                 # This file - project documentation
+└── CLAUDE.md                 # Development guidance for AI assistants
+```
+
+## Troubleshooting
+
+### Service won't start
+```bash
+# Check service status
+systemctl status zabbix-workshop-api.service
+
+# View error logs
+journalctl -u zabbix-workshop-api.service -n 50
+
+# Verify binary exists and is executable
+ls -la bin/api
+```
+
+### Port already in use
+```bash
+# Check what's using port 8080
+sudo lsof -i :8080
+
+# Stop existing service
+sudo systemctl stop zabbix-workshop-api.service
+
+# Or change the port
+API_PORT=9000 ./bin/api
+```
+
+### Restart after code changes
+```bash
+# Rebuild and restart
+go build -o bin/api ./cmd/api
+sudo systemctl restart zabbix-workshop-api.service
+```
+
+## Docker Deployment
+
+The API can be containerized using Docker for portable deployment:
+
+### Build and Run Manually
+
+```bash
+# Build the Docker image
+docker build -t zabbix-workshop/nlld-api:latest .
+
+# Run the container
+docker run -d \
+  --name zabbix-workshop-api \
+  -p 8080:8080 \
+  -e API_PORT=8080 \
+  -e API_HOST=0.0.0.0 \
+  -e DEBUG=false \
+  zabbix-workshop/nlld-api:latest
+
+# Stop and remove the container
+docker stop zabbix-workshop-api && docker rm zabbix-workshop-api
+```
+
+### Using Docker Compose (Recommended)
+
+```bash
+# Start the service in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Check health status
+docker-compose ps
+
+# Stop and remove containers
+docker-compose down
+```
+
+### Docker Configuration Details
+
+- **Multi-stage build**: Optimized image size using separate builder and runtime stages
+- **Non-root user**: Container runs as `appuser` for security
+- **Health check**: Built-in `/health` endpoint monitoring (30s interval, 3 retries)
+- **Static binary**: Compiled with `CGO_ENABLED=0` for minimal dependencies
+
+### Docker Compose Configuration Volume
+
+The docker-compose.yml mounts the local `config/` directory into the container at `/config/`:
+
+```yaml
+volumes:
+  - ./config:/config:ro
+environment:
+  - CONFIG_PATH=/config/default.yaml
+```
+
+This allows you to modify `config/default.yaml` on your host machine and restart the container to apply changes without rebuilding the image:
+
+```bash
+# Edit config/default.yaml, then restart
+docker-compose restart
+
+# Or stop, edit, and start fresh
+docker-compose down
+# ... edit config/default.yaml ...
+docker-compose up -d
+```
+
+The `:ro` flag mounts the volume as read-only for container security.
+
+## CORS Support
+
+The API includes CORS middleware allowing cross-origin requests from any origin (`*`). This enables:
+- Browser-based access to the Swagger UI at `/swagger/`
+- Frontend applications accessing the API from different domains
+- Workshop attendees testing from their local machines
+
+## License
+
+This project is provided as-is for educational purposes at the Zabbix Berlin Conference 2026.

@@ -1,0 +1,25 @@
+# Compiled binaries
+bin/
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+
+# Docker files (not needed in build context)
+.dockerignore
+Dockerfile*
+docker-compose*
+
+# IDE and editor files
+.clade/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
