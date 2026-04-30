@@ -1,0 +1,322 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 7e200bcca15242efb385c16f0d401afb
+      name: Workshop
+  templates:
+    - uuid: d8e9f0a1b2c34d4e8f5a6b7c8d9e0f1a
+      template: 'Building Sensors Chunky API by HTTP'
+      name: 'Building Sensors Chunky API by HTTP'
+      description: 'Template for nested discovery of buildings, rooms, and sensors.'
+      vendor:
+        name: IntelliTrend
+        version: 7.4-0
+      groups:
+        - name: Workshop
+      items:
+        - uuid: 5b6c7d8e9f0a41b29c3d4e5f6a7b8c9d
+          name: 'get Data'
+          type: HTTP_AGENT
+          key: get.all.data
+          value_type: TEXT
+          url: '{$API.BASE.URL}/api/all'
+          tags:
+            - tag: component
+              value: raw-data
+      discovery_rules:
+        - uuid: e0f1a2b3c4d546e78f8a9b0c1d2e3f4a
+          name: 'Building discovery'
+          type: DEPENDENT
+          key: nlld.building
+          item_prototypes:
+            - uuid: 9b0c1d2e3f4a45b68c7d8e9f0a1b2c3d
+              name: 'Building {#NAME}: Address'
+              type: DEPENDENT
+              key: 'building.address[{#BUILDING_ID}]'
+              value_type: CHAR
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].address.first()'
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+            - uuid: 3d4e5f6a7b8c49d08e1f2a3b4c5d6e7f
+              name: 'Building {#NAME}: Description'
+              type: DEPENDENT
+              key: 'building.description[{#BUILDING_ID}]'
+              value_type: CHAR
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].description.first()'
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+          master_item:
+            key: get.all.data
+          lld_macro_paths:
+            - lld_macro: '{#ADDRESS}'
+              path: $.address
+            - lld_macro: '{#BUILDING_ID}'
+              path: $.id
+            - lld_macro: '{#DESCRIPTION}'
+              path: $.description
+            - lld_macro: '{#NAME}'
+              path: $.name
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.data
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+        - uuid: 7f8a9b0c1d2e43f4a5b6c7d8e9f0a1b2
+          name: 'Room discovery {#NAME}'
+          type: NESTED
+          key: 'room.discovery[building,{#BUILDING_ID}]'
+          item_prototypes:
+            - uuid: c4d5e6f7a8b940c1b2d3e4f5a6b7c8d9
+              name: 'Building {#NAME}: Room {#ROOM_NAME} Capacity'
+              type: DEPENDENT
+              key: 'room.capacity[{#BUILDING_ID},{#ROOM_ID}]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].capacity.first()'
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: room_type
+                  value: '{#ROOM_TYPE}'
+            - uuid: 2e3f4a5b6c7d48e9a0f1b2c3d4e5f6a7
+              name: 'Building {#NAME}: Room {#ROOM_NAME} Floor'
+              type: DEPENDENT
+              key: 'room.floor[{#BUILDING_ID},{#ROOM_ID}]'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].floor.first()'
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: room_type
+                  value: '{#ROOM_TYPE}'
+          parent_discovery_rule:
+            key: nlld.building
+          lld_macro_paths:
+            - lld_macro: '{#ROOM_ID}'
+              path: $.id
+            - lld_macro: '{#ROOM_NAME}'
+              path: $.name
+            - lld_macro: '{#ROOM_TYPE}'
+              path: $.type
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.rooms
+        - uuid: 8b9c0d1e2f3a4b4c9d5e6f7a8b9c0d1e
+          name: 'Environment Sensor discovery {#ROOM_NAME}'
+          type: NESTED
+          key: 'sensor.env.discovery[{#BUILDING_ID},{#ROOM_ID}]'
+          filter:
+            conditions:
+              - macro: '{#SENSOR_TYPE}'
+                value: ^environment$
+          item_prototypes:
+            - uuid: a5b6c7d8e9f04a1b8c2d3e4f5a6b7c8d
+              name: '{#SENSOR_NAME}: CO2'
+              type: DEPENDENT
+              key: 'sensor.co2[{#BUILDING_ID},{#ROOM_ID},{#SENSOR_ID}]'
+              value_type: FLOAT
+              units: ppm
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].sensors[?(@.id =~ ''^{#SENSOR_ID}$'')].readings[0].co2.first()'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: sensor
+                  value: '{#SENSOR_NAME}'
+            - uuid: 0c1d2e3f4a5b46c79d8e9f0a1b2c3d4e
+              name: '{#SENSOR_NAME}: Humidity'
+              type: DEPENDENT
+              key: 'sensor.humidity[{#BUILDING_ID},{#ROOM_ID},{#SENSOR_ID}]'
+              value_type: FLOAT
+              units: '%'
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].sensors[?(@.id =~ ''^{#SENSOR_ID}$'')].readings[0].humidity.first()'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: sensor
+                  value: '{#SENSOR_NAME}'
+            - uuid: 6a7b8c9d0e1f42a38b4c5d6e7f8a9b0c
+              name: '{#SENSOR_NAME}: Temperature'
+              type: DEPENDENT
+              key: 'sensor.temperature[{#BUILDING_ID},{#ROOM_ID},{#SENSOR_ID}]'
+              value_type: FLOAT
+              units: °C
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].sensors[?(@.id =~ ''^{#SENSOR_ID}$'')].readings[0].temperature.first()'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: sensor
+                  value: '{#SENSOR_NAME}'
+          parent_discovery_rule:
+            key: 'room.discovery[building,{#BUILDING_ID}]'
+          lld_macro_paths:
+            - lld_macro: '{#SENSOR_ID}'
+              path: $.id
+            - lld_macro: '{#SENSOR_NAME}'
+              path: $.name
+            - lld_macro: '{#SENSOR_TYPE}'
+              path: $.type
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.sensors
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+        - uuid: 4e5f6a7b8c9d4e0f9a1b2c3d4e5f6a7b
+          name: 'Power Sensor discovery {#ROOM_NAME}'
+          type: NESTED
+          key: 'sensor.power.discovery[{#BUILDING_ID},{#ROOM_ID}]'
+          filter:
+            conditions:
+              - macro: '{#SENSOR_TYPE}'
+                value: ^power$
+          item_prototypes:
+            - uuid: b2c3d4e5f6a74b8c9d9e0f1a2b3c4d5e
+              name: '{#SENSOR_NAME}: Current'
+              type: DEPENDENT
+              key: 'sensor.current[{#BUILDING_ID},{#ROOM_ID},{#SENSOR_ID}]'
+              value_type: FLOAT
+              units: A
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].sensors[?(@.id =~ ''^{#SENSOR_ID}$'')].readings[0].current.first()'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: sensor
+                  value: '{#SENSOR_NAME}'
+            - uuid: f1a2b3c4d5e647f89a9b0c1d2e3f4a5b
+              name: '{#SENSOR_NAME}: Energy'
+              type: DEPENDENT
+              key: 'sensor.energy[{#BUILDING_ID},{#ROOM_ID},{#SENSOR_ID}]'
+              value_type: FLOAT
+              units: W
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].sensors[?(@.id =~ ''^{#SENSOR_ID}$'')].readings[0].energy.first()'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: sensor
+                  value: '{#SENSOR_NAME}'
+            - uuid: 7d8e9f0a1b2c43d48e5f6a7b8c9d0e1f
+              name: '{#SENSOR_NAME}: Power'
+              type: DEPENDENT
+              key: 'sensor.power[{#BUILDING_ID},{#ROOM_ID},{#SENSOR_ID}]'
+              value_type: FLOAT
+              units: W
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].sensors[?(@.id =~ ''^{#SENSOR_ID}$'')].readings[0].power.first()'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: sensor
+                  value: '{#SENSOR_NAME}'
+            - uuid: e9f0a1b2c3d445e68f7a8b9c0d1e2f3a
+              name: '{#SENSOR_NAME}: Voltage'
+              type: DEPENDENT
+              key: 'sensor.voltage[{#BUILDING_ID},{#ROOM_ID},{#SENSOR_ID}]'
+              value_type: FLOAT
+              units: V
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id =~ ''^{#BUILDING_ID}$'')].rooms[?(@.id =~ ''^{#ROOM_ID}$'')].sensors[?(@.id =~ ''^{#SENSOR_ID}$'')].readings[0].voltage.first()'
+                  error_handler: DISCARD_VALUE
+              master_item:
+                key: get.all.data
+              tags:
+                - tag: building
+                  value: '{#NAME}'
+                - tag: room
+                  value: '{#ROOM_NAME}'
+                - tag: sensor
+                  value: '{#SENSOR_NAME}'
+          parent_discovery_rule:
+            key: 'room.discovery[building,{#BUILDING_ID}]'
+          lld_macro_paths:
+            - lld_macro: '{#SENSOR_ID}'
+              path: $.id
+            - lld_macro: '{#SENSOR_NAME}'
+              path: $.name
+            - lld_macro: '{#SENSOR_TYPE}'
+              path: $.type
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.sensors
+            - type: DISCARD_UNCHANGED_HEARTBEAT
+              parameters:
+                - 1h
+      macros:
+        - macro: '{$API.BASE.URL}'
+          value: 'http://zabbix-workshop-api:8080'

@@ -1,0 +1,697 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Zabbix Workshop Mock Data API",
+    "description": "A mock data API for Zabbix Berlin Conference 2026 Workshop - provides realistic sensor data for testing nested low-level discovery (LLD) features.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "",
+      "description": "Current host"
+    }
+  ],
+  "paths": {
+    "/api": {
+      "get": {
+        "summary": "List all available API endpoints",
+        "description": "Returns a map of endpoint paths to their descriptions.",
+        "operationId": "listEndpoints",
+        "tags": ["General"],
+        "responses": {
+          "200": {
+            "description": "Successful response with endpoint list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/all": {
+      "get": {
+        "summary": "Get all buildings, rooms, sensors, and readings in one request",
+        "description": "Returns the complete data hierarchy with nested array structure. Ideal for Zabbix LLD testing as it provides all data in a single request.",
+        "operationId": "getAllData",
+        "tags": ["Buildings"],
+        "responses": {
+          "200": {
+            "description": "Successful response with nested building/room/sensor data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {
+                      "id": 10,
+                      "name": "HQ Building",
+                      "description": "Main headquarters with all departments",
+                      "address": "Tech Park 1, Berlin",
+                      "rooms": [
+                        {
+                          "id": 100,
+                          "building_id": 10,
+                          "name": "Training Room A",
+                          "type": "training_room",
+                          "floor": 1,
+                          "capacity": 30,
+                          "sensors": [
+                            {
+                              "id": 1001,
+                              "room_id": 100,
+                              "name": "Environment Sensor - Front",
+                              "type": "environment",
+                              "description": "Environmental monitoring at front of room",
+                              "readings": [
+                                {
+                                  "sensor_id": 1001,
+                                  "temperature": 22.4,
+                                  "humidity": 45.2,
+                                  "co2": 680,
+                                  "timestamp": 1774260581
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "meta": {
+                    "total": 19,
+                    "timestamp": 1774260581
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/buildings/": {
+      "get": {
+        "summary": "List all buildings/locations",
+        "operationId": "listBuildings",
+        "tags": ["Buildings"],
+        "responses": {
+          "200": {
+            "description": "Successful response with building list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {"id": 10, "name": "HQ Building", "description": "Main headquarters with all departments", "address": "Tech Park 1, Berlin"},
+                    {"id": 11, "name": "Data Center", "description": "Secondary data center facility", "address": "Industrial Area 5, Berlin"}
+                  ],
+                  "meta": {
+                    "total": 2,
+                    "timestamp": 1774260581
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/buildings/{id}/": {
+      "get": {
+        "summary": "Get building details by ID",
+        "operationId": "getBuildingById",
+        "tags": ["Buildings"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Building ID (10-99, e.g., 10, 11)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with building details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {"id": 10, "name": "HQ Building", "description": "Main headquarters with all departments", "address": "Tech Park 1, Berlin"},
+                  "meta": {"timestamp": 1774260581}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Building not found"
+          }
+        }
+      }
+    },
+    "/api/buildings/{id}/rooms/": {
+      "get": {
+        "summary": "List rooms in a building (minimal, no sensor_ids)",
+        "description": "Returns rooms as an array without sensor_ids field. Use /api/rooms/{id}/sensors/ to get sensors for a specific room.",
+        "operationId": "listRoomsByBuilding",
+        "tags": ["Buildings"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Building ID (10-99, e.g., 10, 11)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with room list (minimal)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {"id": 100, "building_id": 10, "name": "Training Room A", "type": "training_room", "floor": 1, "capacity": 30},
+                    {"id": 101, "building_id": 10, "name": "Training Room B", "type": "training_room", "floor": 1, "capacity": 25}
+                  ],
+                  "meta": {
+                    "total": 11,
+                    "page": 1,
+                    "per_page": 11,
+                    "timestamp": 1774260581
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Building not found"
+          }
+        }
+      }
+    },
+    "/api/rooms/{id}/": {
+      "get": {
+        "summary": "Get room details by ID (minimal, no sensor_ids)",
+        "description": "Returns a single room without sensor_ids field. Use /api/rooms/{id}/sensors/ to get sensors for this room.",
+        "operationId": "getRoomById",
+        "tags": ["Rooms"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Room ID (100-999, e.g., 100-114)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with room details (minimal)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": {"id": 100, "building_id": 10, "name": "Training Room A", "type": "training_room", "floor": 1, "capacity": 30},
+                  "meta": {"timestamp": 1774260581}
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      }
+    },
+    "/api/rooms/{id}/sensors/": {
+      "get": {
+        "summary": "List sensors in a room",
+        "operationId": "listSensorsByRoom",
+        "tags": ["Rooms"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Room ID (100-999, e.g., 100-114)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with sensor list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "example": {
+                  "success": true,
+                  "data": [
+                    {"id": 1001, "room_id": 100, "name": "Environment Sensor - Front", "type": "environment", "description": "Environmental monitoring at front of room"},
+                    {"id": 1002, "room_id": 100, "name": "Smart Plug - HVAC", "type": "power", "description": "Power monitoring for HVAC unit"}
+                  ],
+                  "meta": {
+                    "total": 2,
+                    "timestamp": 1774260581
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Room not found"
+          }
+        }
+      }
+    },
+    "/api/sensors/{id}/readings/": {
+      "get": {
+        "summary": "Get latest sensor readings",
+        "description": "Returns the latest fused reading for a sensor. Environment sensors return temperature/humidity/CO2; power sensors return voltage/current/power/energy.",
+        "operationId": "getSensorReadings",
+        "tags": ["Sensors"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Sensor ID (1000-9999, e.g., 1001, 1002)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response with sensor reading",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/APIResponse"
+                },
+                "examples": {
+                  "environment": {
+                    "summary": "Environment sensor reading",
+                    "value": {
+                      "success": true,
+                      "data": {"sensor_id": 1001, "temperature": 22.4, "humidity": 45.2, "co2": 680, "timestamp": 1774260581},
+                      "meta": {"timestamp": 1774260581}
+                    }
+                  },
+                  "power": {
+                    "summary": "Power sensor reading",
+                    "value": {
+                      "success": true,
+                      "data": {"sensor_id": 1002, "voltage": 230.0, "current": 0.022, "power": 5.0, "energy": 492876.0, "timestamp": 1774260581},
+                      "meta": {"timestamp": 1774260581}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Sensor not found"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health check endpoint",
+        "description": "Returns OK if the service is running.",
+        "operationId": "healthCheck",
+        "tags": ["General"],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "OK"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger/": {
+      "get": {
+        "summary": "Swagger UI documentation",
+        "description": "Serves the interactive Swagger UI for API exploration.",
+        "operationId": "getSwaggerUI",
+        "tags": ["General"],
+        "responses": {
+          "200": {
+            "description": "Swagger UI HTML page"
+          }
+        }
+      }
+    },
+    "/swagger/openapi.json": {
+      "get": {
+        "summary": "OpenAPI specification",
+        "description": "Returns the OpenAPI 3.0.3 JSON specification for this API.",
+        "operationId": "getOpenAPISpec",
+        "tags": ["General"],
+        "responses": {
+          "200": {
+            "description": "OpenAPI JSON specification"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Building": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 10
+          },
+          "name": {
+            "type": "string",
+            "example": "HQ Building"
+          },
+          "description": {
+            "type": "string",
+            "example": "Main headquarters with all departments"
+          },
+          "address": {
+            "type": "string",
+            "example": "Tech Park 1, Berlin"
+          }
+        }
+      },
+      "RoomMinimal": {
+        "type": "object",
+        "description": "Room without sensor_ids field (chatty REST pattern)",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 100
+          },
+          "building_id": {
+            "type": "integer",
+            "example": 10
+          },
+          "name": {
+            "type": "string",
+            "example": "Training Room A"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["training_room", "office", "management", "storage", "serverroom", "kitchen", "lobby"],
+            "example": "training_room"
+          },
+          "floor": {
+            "type": "integer",
+            "example": 1
+          },
+          "capacity": {
+            "type": "integer",
+            "example": 30
+          }
+        }
+      },
+      "Sensor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1001
+          },
+          "room_id": {
+            "type": "integer",
+            "example": 100
+          },
+          "name": {
+            "type": "string",
+            "example": "Environment Sensor - Front"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["environment", "power"],
+            "example": "environment"
+          },
+          "description": {
+            "type": "string",
+            "example": "Environmental monitoring at front of room"
+          }
+        }
+      },
+      "EnvironmentReading": {
+        "type": "object",
+        "description": "Fused environment sensor reading (temperature, humidity, CO2)",
+        "properties": {
+          "sensor_id": {
+            "type": "integer",
+            "example": 1001
+          },
+          "temperature": {
+            "type": "number",
+            "format": "float",
+            "description": "Temperature in degrees Celsius",
+            "example": 22.4
+          },
+          "humidity": {
+            "type": "number",
+            "format": "float",
+            "description": "Relative humidity percentage",
+            "example": 45.2
+          },
+          "co2": {
+            "type": "number",
+            "format": "float",
+            "description": "CO2 concentration in parts per million (ppm)",
+            "example": 680
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Unix timestamp in seconds",
+            "example": 1774260581
+          }
+        }
+      },
+      "MultiReading": {
+        "type": "object",
+        "description": "Fused power sensor reading (voltage, current, power, energy)",
+        "properties": {
+          "sensor_id": {
+            "type": "integer",
+            "example": 1002
+          },
+          "voltage": {
+            "type": "number",
+            "format": "float",
+            "description": "Voltage in volts (V)",
+            "example": 230.0
+          },
+          "current": {
+            "type": "number",
+            "format": "float",
+            "description": "Current in amperes (A)",
+            "example": 0.022
+          },
+          "power": {
+            "type": "number",
+            "format": "float",
+            "description": "Power in watts (W)",
+            "example": 5.0
+          },
+          "energy": {
+            "type": "number",
+            "format": "float",
+            "description": "Energy consumption in kilowatt-hours (kWh)",
+            "example": 492876.0
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Unix timestamp in seconds",
+            "example": 1774260581
+          }
+        }
+      },
+      "APIResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "description": "Response data (varies by endpoint)"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message when success is false"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/MetaInfo"
+          }
+        }
+      },
+      "MetaInfo": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "description": "Total number of items (for list endpoints)",
+            "example": 2
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number",
+            "example": 1
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Items per page",
+            "example": 15
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Unix timestamp in seconds",
+            "example": 1774260581
+          }
+        }
+      },
+      "SensorWithReadings": {
+        "type": "object",
+        "description": "Sensor with nested readings array (used in /api/all)",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1001
+          },
+          "room_id": {
+            "type": "integer",
+            "example": 100
+          },
+          "name": {
+            "type": "string",
+            "example": "Environment Sensor - Front"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["environment", "power"],
+            "example": "environment"
+          },
+          "description": {
+            "type": "string",
+            "example": "Environmental monitoring at front of room"
+          },
+          "readings": {
+            "type": "array",
+            "description": "Array containing one EnvironmentReading or MultiReading object",
+            "items": {}
+          }
+        }
+      },
+      "RoomWithSensors": {
+        "type": "object",
+        "description": "Room with nested sensors array (used in /api/all)",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 100
+          },
+          "building_id": {
+            "type": "integer",
+            "example": 10
+          },
+          "name": {
+            "type": "string",
+            "example": "Training Room A"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["training_room", "office", "management", "storage", "serverroom", "kitchen", "lobby"],
+            "example": "training_room"
+          },
+          "floor": {
+            "type": "integer",
+            "example": 1
+          },
+          "capacity": {
+            "type": "integer",
+            "example": 30
+          },
+          "sensors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SensorWithReadings"
+            }
+          }
+        }
+      },
+      "BuildingWithRoomsNested": {
+        "type": "object",
+        "description": "Building with nested rooms array (used in /api/all)",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 10
+          },
+          "name": {
+            "type": "string",
+            "example": "HQ Building"
+          },
+          "description": {
+            "type": "string",
+            "example": "Main headquarters with all departments"
+          },
+          "address": {
+            "type": "string",
+            "example": "Tech Park 1, Berlin"
+          },
+          "rooms": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoomWithSensors"
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {"name": "General", "description": "General API endpoints"},
+    {"name": "Buildings", "description": "Building-related operations"},
+    {"name": "Rooms", "description": "Room-related operations"},
+    {"name": "Sensors", "description": "Sensor and readings operations"}
+  ]
+}

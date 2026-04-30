@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zabbix Workshop Mock Data API - Swagger UI</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+        }
+        #swagger-ui {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .info-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .info-section h3 {
+            margin-top: 0;
+            color: #667eea;
+        }
+        .endpoint-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .endpoint-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .endpoint-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .endpoint-card code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Zabbix Workshop Mock Data API</h1>
+        <p>Berlin Conference 2026 - Interactive API Explorer</p>
+    </div>
+
+    <div id="swagger-ui"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+        window.onload = function() {
+            SwaggerUIBundle({
+                url: "/swagger/openapi.json?v=" + Date.now(),
+                dom_id: '#swagger-ui',
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout",
+                deepLinking: true,
+                showExtensions: true,
+                showCommonExtensions: true,
+                validatorUrl: null,
+                docExpansion: "list",
+                maxDisplayedTags: 10,
+                filter: true
+            });
+
+            // Add custom info section after Swagger UI loads
+            setTimeout(function() {
+                const swaggerContainer = document.getElementById('swagger-ui');
+                if (swaggerContainer) {
+                    const infoSection = document.createElement('div');
+                    infoSection.className = 'info-section';
+                    infoSection.innerHTML = `
+                        <h3>📊 About This API</h3>
+                        <p>This mock data API provides realistic sensor readings for testing Zabbix 7.4 nested low-level discovery (LLD) features.</p>
+
+                        <h3>🏢 Demo Company Structure</h3>
+                        <div class="endpoint-grid">
+                            <div class="endpoint-card">
+                                <h4>HQ Building (ID: 1)</h4>
+                                <code>/api/buildings/1/rooms/</code><br>
+                                Training Rooms, Offices, Management Suite, Storage, Server Room, HR, Finance, Kitchen, Lobby
+                            </div>
+                            <div class="endpoint-card">
+                                <h4>Data Center (ID: 2)</h4>
+                                <code>/api/buildings/2/rooms/</code><br>
+                                Server Halls A/B, Network Room, UPS Room
+                            </div>
+                        </div>
+
+                        <h3>📈 Sensor Types</h3>
+                        <div class="endpoint-grid">
+                            <div class="endpoint-card">
+                                <h4>Temperature</h4>
+                                Unit: °C | Range: 17-30°C<br>
+                                Gradual changes ±0.5°C per update
+                            </div>
+                            <div class="endpoint-card">
+                                <h4>Humidity</h4>
+                                Unit: % | Range: 30-75%<br>
+                                Gradual changes ±3% per update
+                            </div>
+                            <div class="endpoint-card">
+                                <h4>CO2</h4>
+                                Unit: ppm | Range: 400-2500ppm<br>
+                                Gradual changes ±80ppm per update
+                            </div>
+                            <div class="endpoint-card">
+                                <h4>Smart Plug (Power)</h4>
+                                Voltage, Current, Power, Energy<br>
+                                Time-of-day patterns applied
+                            </div>
+                        </div>
+
+                        <h3>🔧 Quick Start</h3>
+                        <p><strong>1.</strong> Select an endpoint from the list below<br>
+                           <strong>2.</strong> Click "Try it out" to expand the request<br>
+                           <strong>3.</strong> Click "Execute" to see real-time sensor data<br>
+                           <strong>4.</strong> Refresh every 5 seconds to see gradual value changes</p>
+                    `;
+                    swaggerContainer.insertBefore(infoSection, swaggerContainer.firstChild);
+                }
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
